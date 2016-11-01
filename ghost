@@ -1,27 +1,52 @@
 server {
+    # Puerto a escuchar para HTTPS
     listen 443 ssl;
-    # if you wish, you can use the below line for listen instead 
-    # which enables HTTP/2 requires nginx version >= 1.9.5 listen 443 
+
+    # Descomentar esta línea para activar el protocolo HTTP2
     # ssl http2;
-    server_name eiris.es www.eiris.es;
-    ssl_certificate /etc/letsencrypt/live/eiris.es/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/eiris.es/privkey.pem;
+
+    # Datos del servidor
+    server_name TUDOMINIO.COM www.TUDOMINIO.COM;
+
+    # Directorio de los certificados
+    ssl_certificate /etc/letsencrypt/live/TUDOMINIO.COM/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/TUDOMINIO.COM/privkey.pem;
+
     # Turn on OCSP stapling as recommended at 
     # https://community.letsencrypt.org/t/integration-guide/13123 
     # requires nginx version >= 1.3.7
     ssl_stapling on;
     ssl_stapling_verify on;
+
     # Uncomment this line only after testing in browsers, as it 
     # commits you to continuing to serve your site over HTTPS in 
     # future add_header Strict-Transport-Security "max-age=31536000";
-    access_log /var/log/nginx/sub.log combined;
-
     add_header Strict-Transport-Security "max-age=31536000";
+
+    # Configuración de los logs del site
+    access_log /var/log/nginx/TUDOMINIO.COM.access;
+    error_log /var/log/nginx/TUDOMINIO.COM.error error;
+
+    # Configuración del módulo Pagespeed
+    pagespeed on;
+
+    # Needs to exist and be writable by nginx.  Use tmpfs for best performance.
+    pagespeed FileCachePath /var/ngx_pagespeed_cache;
+    
+    # Ensure requests for pagespeed optimized resources go to the pagespeed handler
+    # and no extraneous headers get set.
+    location ~ "\.pagespeed\.([a-z]\.)?[a-z]{2}\.[^.]{10}\.[^.]+" {
+        add_header "" "";
+    }
+    location ~ "^/pagespeed_static/" { }
+    location ~ "^/ngx_pagespeed_beacon$" { }
 
     # maintain the .well-known directory alias for renewals
     location /.well-known {
         alias /var/www/ghost/.well-known;
     }
+
+    # Configuración del proxy al puerto de Ghost
     location / {
         proxy_pass http://localhost:2368;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -32,12 +57,14 @@ server {
 }
 
 server {
-	server_name www.eiris.es;
-	return 301 $scheme://eiris.es$request_uri;
+    # Redirección del puerto 80 al 443
+    listen 80;
+    server_name TUDOMINIO.COM www.TUDOMINIO.COM;
+    rewrite ^ https://$host$request_uri? permanent;
 }
 
 server {
-    listen 80;
-    server_name eiris.es www.eiris.es;
-    rewrite ^ https://$host$request_uri? permanent;
+    # Redirección de www a sin www
+	server_name www.TUDOMINIO.COM;
+	return 301 $scheme://eiris.es$request_uri;
 }
